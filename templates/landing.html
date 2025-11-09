@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{{ app_title }} - Selfie Consent</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0b0f1a; color:#e9eaf3; margin:0; }
+    .wrap { max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    .card { background:#12172a; border:1px solid #243056; border-radius:16px; padding:20px; }
+    video, canvas { width:100%; max-height:340px; border-radius:12px; background:#000; }
+    button { background:#6c63ff; border:none; padding:12px 16px; border-radius:12px; color:white; font-weight:700; cursor:pointer; margin-right:8px;}
+    .muted { opacity:.8; font-size:14px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>স্বচ্ছ সম্মতি</h2>
+      <p class="muted">
+        আপনি যদি সম্মত থাকেন, তাহলে **Send & Continue** বোতামে চাপার পর আপনার ক্যামেরা চালু হবে, একটি সেলফি ছবি সার্ভারে আপলোড হবে,
+        এবং তা অ্যাডমিনের টেলিগ্রামে পাঠানো হবে। তারপর আপনাকে নির্ধারিত ওয়েবসাইটে রিডাইরেক্ট করা হবে।
+      </p>
+      <div style="margin:12px 0">
+        <button id="startBtn">Start Camera</button>
+        <button id="snapBtn" disabled>Send & Continue</button>
+      </div>
+      <video id="video" autoplay playsinline muted></video>
+      <canvas id="canvas" style="display:none"></canvas>
+      <div id="status" class="muted" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const snapBtn = document.getElementById('snapBtn');
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const statusEl = document.getElementById('status');
+
+    async function startCamera() {
+      statusEl.textContent = '';
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        video.srcObject = stream;
+        snapBtn.disabled = false;
+      } catch (e) {
+        statusEl.textContent = 'Camera permission denied or unavailable.';
+      }
+    }
+
+    function takeSnapshot() {
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      if (!w || !h) {
+        statusEl.textContent = 'Camera not ready yet, try again.';
+        return;
+      }
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+      return canvas.toDataURL('image/jpeg', 0.9);
+    }
+
+    async function sendAndRedirect() {
+      const dataUrl = takeSnapshot();
+      if (!dataUrl) return;
+
+      statusEl.textContent = 'Uploading...';
+      try {
+        const res = await fetch('/upload/{{ slug }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageData: dataUrl })
+        });
+        const js = await res.json();
+        if (js.ok && js.redirect) {
+          statusEl.textContent = 'Success! Redirecting...';
+          window.location.href = js.redirect;
+        } else {
+          statusEl.textContent = 'Upload failed: ' + (js.error || 'unknown');
+        }
+      } catch (e) {
+        statusEl.textContent = 'Network error.';
+      }
+    }
+
+    startBtn.addEventListener('click', startCamera);
+    snapBtn.addEventListener('click', sendAndRedirect);
+  </script>
+</body>
+</html>
